@@ -1,5 +1,9 @@
+# import necessary modules 
 import sys
 from urllib import request
+import plotly.express as px
+import plotly.io as pio
+import pandas as pd
 import json
 import random
 import docx
@@ -30,6 +34,7 @@ def get_detailed_info():
     
     # if at least one successful API call, continue program. even if 4 fail, program can still work with data for one park.
     print(f"Succesfully retrieved data for {len(park_info)} out of 5 park(s).")
+    print("Making document...")
     return park_info # return list of detailed info dictionaries 
 
 # function to save images to working directory
@@ -41,14 +46,64 @@ def save_images(images):
         request.urlretrieve(img, f"{counter}.jpg") 
         counter += 1 # use counter to name files 0.jpg, 1.jpg, etc...
 
+# make a dataframe with pandas for later use with plotly to generate a map
+def make_dataframe(park_info):
+    # initialize empty list, which will form basis of data frame 
+    data = []
+
+    # for each park, append its name and coordinates into empty list
+    for park in park_info:
+        park_data = []
+        park_data.append(park["name"])
+        park_data.append(park["location"]["latitude"])
+        park_data.append(park["location"]["longitude"])
+        
+        # append that list into the dataframe list
+        data.append(park_data)
+
+    return data
+
+# generate map using plotly.express
+def create_map(park_info):
+    # create dataframe using pd.DataFrame. call make dataframe fuction to provide requisite list
+    df = pd.DataFrame(make_dataframe(park_info))
+    
+    # create scatter_geo plot, pass it the data frame, and have it use the 3 columns in df for lon, lat, and text
+    fig = px.scatter_geo(df,
+        lon = 2,
+        lat = 1,
+        text = 0,
+    )
+    
+    # set map paramaters, scope usa so it displays state borders, and fitbounds='locations' to automatically crop map
+    fig.update_geos(
+        scope = "usa", fitbounds = "locations",
+        showcountries = True, showsubunits = True,
+    )
+    
+    # add text to each marker on the map
+    fig.update_traces(
+        textposition="bottom center",
+        mode="markers+text"
+    )
+
+    # save image to directory as map.png
+    pio.write_image(fig, "map.png", scale=2, width=1000, height=800)
+
+
 # function for making the word doc itself
 def make_document():
-    # initialize doc and add title
+    # initialize doc and add title, initialize park info list of dicts
     doc = docx.Document()
     doc.add_paragraph("Minnesota State Park Travel Guide", "Title")
+    park_info = get_detailed_info()
+
+    # create map of parks and add map to the start of the document 
+    create_map(park_info)
+    doc.add_picture("map.png", width=docx.shared.Inches(6))
 
     # iterate thru list of park info dicts
-    for park in get_detailed_info():
+    for park in park_info:
         # pass current park into save_images, will download all relevant images for specific park into pwd
         save_images(park["park_images"])
 
@@ -67,10 +122,9 @@ def make_document():
             doc.add_paragraph(f"{description}")
         
         # create heading for photos section
-        doc.add_paragraph(f"Photographs of {park['name']}", "Heading 1")
-
         # figure out how many images were downloaded by checking len(park["park_images"])
         # use for n in range to add picture to doc. don't use 0 since 0.jpg is used at start of section
+        doc.add_paragraph(f"Photographs of {park['name']}", "Heading 1")
         for n in range(1, len(park["park_images"])):
             doc.add_picture(f"{n}.jpg", width=docx.shared.Inches(6))
 
@@ -83,9 +137,10 @@ def make_document():
 
         # add page break so next park can start at the top of its own page
         doc.add_page_break()
-
+    
     # save doc once loop is finished
     doc.save('state_park_guide.docx')
+    print("Done!")
 
 if __name__ == "__main__":
     make_document()
