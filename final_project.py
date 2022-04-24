@@ -33,7 +33,7 @@ def get_detailed_info():
         sys.exit("Failed to reach API, exiting program")
     
     # if at least one successful API call, continue program. even if 4 fail, program can still work with data for one park.
-    print(f"Succesfully retrieved data for {len(park_info)} out of 5 park(s).")
+    print(f"Succesfully retrieved data for {len(park_info)} out of 5 parks.")
     print("Making document...")
     
     # return list of detailed info dictionaries 
@@ -73,15 +73,21 @@ def create_map(park_info):
     
     # create scatter_geo plot, pass it the data frame, and have it use the 3 columns in df for lon, lat, and text
     fig = px.scatter_geo(df,
-        lon = 2,
-        lat = 1,
-        text = 0,
+        lon=2, lat=1, text=0,
+        width=800, height=1600
     )
     
-    # set map paramaters, scope usa so it displays state borders, and fitbounds='locations' to automatically crop map
+    # set map paramaters, scope usa so it displays state borders
     fig.update_geos(
-        scope = "usa", fitbounds = "locations",
-        showcountries = True, showsubunits = True,
+        scope = "usa", 
+        showcountries = True, 
+        showsubunits = True,
+
+        # center the map on minnesota and adjust map paramaters to better display the state
+        center=dict(lat=46.3, lon=-94),
+        projection=dict(scale=4.4),
+        lataxis=dict(range=[6, 46.5]),
+        lonaxis=dict(range=[2, -95])
     )
     
     # add text to each marker on the map
@@ -90,10 +96,16 @@ def create_map(park_info):
         mode="markers+text"
     )
 
+    # remove margins and set font size
+    fig.update_layout(
+        margin=dict(l=0, r=0, t=0, b=0),
+        font=dict(size=24)
+    )
+
     # save image to directory as map.png
     pio.write_image(
         fig, "map.png", 
-        scale=2, width=1000, height=800
+        scale=1, width=1000, height=1300
     )
 
 
@@ -103,6 +115,9 @@ def make_document():
     doc = docx.Document()
     doc.add_paragraph("Minnesota State Park Travel Guide", "Title")
     park_info = get_detailed_info()
+
+    # initialize counter for parks
+    counter = 0
 
     # create map of parks and add map to the start of the document 
     create_map(park_info)
@@ -119,7 +134,7 @@ def make_document():
 
         # create bulleted list of highlights for each park
         doc.add_paragraph("Highlights", "Heading 2")
-        for n, highlight in enumerate(park['highlights']):
+        for highlight in park['highlights']:
             doc.add_paragraph(f"{highlight}", "List Bullet")
 
         # create paragraph with heading for each description found in park dict
@@ -141,8 +156,13 @@ def make_document():
         doc.add_paragraph("Website", "Heading 3")
         doc.add_paragraph(f"{park['url']}")
 
+        # add 1 to counter for each park added to document 
+        counter += 1
+
         # add page break so next park can start at the top of its own page
-        doc.add_page_break()
+        # don't add page break for last park since that will result in blank page
+        if counter != 5:
+            doc.add_page_break()
     
     # save doc once loop is finished
     doc.save('state_park_guide.docx')
