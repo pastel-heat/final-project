@@ -35,7 +35,9 @@ def get_detailed_info():
     # if at least one successful API call, continue program. even if 4 fail, program can still work with data for one park.
     print(f"Succesfully retrieved data for {len(park_info)} out of 5 park(s).")
     print("Making document...")
-    return park_info # return list of detailed info dictionaries 
+    
+    # return list of detailed info dictionaries 
+    return park_info 
 
 # function to save images to working directory
 def save_images(images):
@@ -64,6 +66,7 @@ def make_dataframe(park_info):
     return data
 
 # generate map using plotly.express
+# has some issues with overlapping text on map markers if they're too close together, unsure how to resolve currently
 def create_map(park_info):
     # create dataframe using pd.DataFrame. call make dataframe fuction to provide requisite list
     df = pd.DataFrame(make_dataframe(park_info))
@@ -88,7 +91,10 @@ def create_map(park_info):
     )
 
     # save image to directory as map.png
-    pio.write_image(fig, "map.png", scale=2, width=1000, height=800)
+    pio.write_image(
+        fig, "map.png", 
+        scale=2, width=1000, height=800
+    )
 
 
 # function for making the word doc itself
